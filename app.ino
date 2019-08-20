@@ -1,93 +1,127 @@
-#include  <Wire.h>
-#include  <LiquidCrystal_I2C.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 #include "DHT.h"
 
 #define capacitiveSoil A1
-#define heater 2
-#define DHTPIN 3
+#define DHTPIN 2
+#define heater 3
+#define motorAC 4
+#define buzzer 6
+
 #define DHTTYPE DHT11
 
 //motor
-#define in1 4
-#define in2 5
+#define in1 29
+#define in2 31
+#define ENA 5
 
 int kadarAir;
 int persen;
 float t;
 int data = 0;
-int data2 = 0; 
+int data2 = 0;
+bool udah_bunyi = false;
 
-LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);  // Set the LCD I2C address
+LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE); // Set the LCD I2C address
 DHT dht(DHTPIN, DHTTYPE);
 
-void setup() 
+void setup()
 {
   Serial.begin(38400);
   dht.begin();
   pinMode(heater, OUTPUT);
+  pinMode(motorAC, OUTPUT);
   pinMode(in1, OUTPUT);
   pinMode(in2, OUTPUT);
- 
-  lcd.begin(16,2);  
+  pinMode(buzzer, OUTPUT);
+
+  lcd.begin(16, 2);
   lcd.backlight();
-  lcd.setCursor(0,0);
+  lcd.setCursor(0, 0);
   lcd.print("Pengering Gabah");
 }
 
-void loop() 
+void loop()
 {
   kadarAir = analogRead(capacitiveSoil);
- 
+
   t = dht.readTemperature();
   lcd.setCursor(0, 1);
   //lcd.print(suhu);
   lcd.print(t);
 
-  persen = -0.04*kadarAir+40;
-  lcd.setCursor(11, 1);
-  lcd.print(persen);
+  persen = -0.04 * kadarAir + 40;
+  lcd.setCursor(13, 1);
+  if (persen < 10)
+  {
+    lcd.print(" ");
+  }
+  else
+  {
+    lcd.print(persen);
+  }
+
   lcd.print("%");
   delay(1000);
 
-  if (persen <=14)
+  if (persen <= 14 && udah_bunyi == false)
   {
     digitalWrite(heater, LOW);
-    lcd.setCursor(15,0);
-    lcd.print("0");
-  }else
+    digitalWrite(motorAC, LOW);
+    lcd.setCursor(8, 1);
+    lcd.print("OFF");
+    bunyi();
+    udah_bunyi = true;
+  }
+  else if (persen > 14)
   {
     digitalWrite(heater, HIGH);
-    lcd.setCursor(15,0);
-    lcd.print("1");   
+    digitalWrite(motorAC, HIGH);
+    lcd.setCursor(8, 1);
+    lcd.print("ON ");
+    udah_bunyi = false;
   }
 
-	if (Serial.available() > 0)
+  if (Serial.available() > 0)
   {
     data = Serial.read();
     Serial.print(data);
     Serial.print("\n");
     if (data == '1')
-			{
-				data2 = '1';
-        kipasNyala();
-				data = 0;
-			}else if (data == '0') 
-			{
-    		kipasMati();
-				data2 = '0';
-				data = 0;
-			}
+    {
+      data2 = '1';
+      kipasNyala();
+      data = 0;
+    }
+    else if (data == '0')
+    {
+      kipasMati();
+      data2 = '0';
+      data = 0;
+    }
   }
-	Serial.println(data);
-	
+
+  Serial.print(t);
+  Serial.print("\t");
+  Serial.println(persen);
+
 }
 
-void kipasNyala(){
-	digitalWrite(in1, HIGH);
+void kipasNyala()
+{
+  digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW);
 }
 
-void kipasMati(){
-	digitalWrite(in1, LOW);
+void kipasMati()
+{
+  digitalWrite(in1, LOW);
   digitalWrite(in2, LOW);
+}
+
+void bunyi()
+{
+  tone(buzzer, 3000); // Send 1KHz sound signal...
+  delay(1500);        // ...for 1 sec
+  noTone(buzzer);     // Stop sound...
 }
